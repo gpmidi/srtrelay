@@ -2,3 +2,4 @@ srtrelay
 config.toml
 /Dockerfile
 /vendor
+.idea
