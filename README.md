@@ -1,11 +1,17 @@
-# srtrelay
+# srtrelay ![CI](https://github.com/voc/srtrelay/workflows/CI/badge.svg)
 Streaming-Relay for the SRT-protocol
 
 Use at your own risk
 
 ## Dependencies
+Requires libsrt-1.4.2
+
+**Ubuntu**
+  - you will need to [build libsrt yourself](https://github.com/Haivision/srt#build-on-linux)
+
 **Debian 10**:
-  - apt install libsrt1-openssl
+  - use libsrt-openssl-dev from the [voc repository](https://c3voc.de/wiki/projects:vocbian)
+  - or [build it yourself](https://github.com/Haivision/srt#build-on-linux)
 
 **Gentoo**:
   - emerge net-libs/srt
@@ -41,17 +47,8 @@ The configuration file can be placed under *config.toml* in the current working 
 ### API
 See [docs/API.md](docs/API.md) for more information about the API.
 
-## Design Ideas
-  - Just a 1:n multiplexer, one publisher (push) to multiple subscribers (pull)
-  - No decoding -> use ffmpeg instead
-  - No remuxing -> use ffmpeg instead
-  - Allow any data to be relayed, not just MPEG-TS
-
-## Develop
-Run tests
-```
-go test ./...
-```
+## Contributing
+See [docts/Contributing.md](docs/Contributing.md)
 
 ## Credits
 Thanks go to
