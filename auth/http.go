@@ -37,7 +37,7 @@ func NewHTTPAuth(config HTTPAuthConfig) *httpAuth {
 // If the response code is 2xx the publish/play is allowed, otherwise it is denied.
 // This should be compatible with nginx-rtmps on_play/on_publish directives.
 // https://github.com/arut/nginx-rtmp-module/wiki/Directives#on_play
-func (h *httpAuth) Authenticate(streamid stream.StreamID) bool {
+func (h *httpAuth) Authenticate(streamid stream.StreamID) (bool, stream.StreamID) {
 	response, err := h.client.PostForm(h.config.URL, url.Values{
 		"call":                 {streamid.Mode().String()},
 		"app":                  {h.config.Application},
@@ -47,13 +47,13 @@ func (h *httpAuth) Authenticate(streamid stream.StreamID) bool {
 
 	if err != nil {
 		log.Println("http-auth:", err)
-		return false
+		return false, streamid
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return false
+		return false, streamid
 	}
 
-	return true
+	return true, streamid
 }

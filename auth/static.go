@@ -23,11 +23,11 @@ func NewStaticAuth(config StaticAuthConfig) *StaticAuth {
 
 // Authenticate tries to match the stream id against the locally
 // configured matches in the allowlist.
-func (auth *StaticAuth) Authenticate(streamid stream.StreamID) bool {
+func (auth *StaticAuth) Authenticate(streamid stream.StreamID) (bool, stream.StreamID) {
 	for _, allowed := range auth.allow {
 		if streamid.Match(allowed) {
-			return true
+			return true, streamid
 		}
 	}
-	return false
+	return false, streamid
 }

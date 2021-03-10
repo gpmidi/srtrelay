@@ -150,7 +150,8 @@ func (s *ServerImpl) Handle(sock *srtgo.SrtSocket, addr *net.UDPAddr) {
 	}
 
 	// Check authentication
-	if !s.config.Auth.Authenticate(streamid) {
+	ok, newidstring := s.config.Auth.Authenticate(streamid)
+	if !ok {
 		log.Printf("%s - Stream '%s' access denied\n", addr, streamid)
 		return
 	}
@@ -158,10 +159,10 @@ func (s *ServerImpl) Handle(sock *srtgo.SrtSocket, addr *net.UDPAddr) {
 	conn := &srtConn{
 		socket:   sock,
 		address:  addr,
-		streamid: &streamid,
+		streamid: &newidstring,
 	}
 
-	switch streamid.Mode() {
+	switch newidstring.Mode() {
 	case stream.ModePlay:
 		err = s.play(conn)
 	case stream.ModePublish:
