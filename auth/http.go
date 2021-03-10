@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/voc/srtrelay/stream"
 )
+
+var ErrRedirect = errors.New("redirect")
 
 type httpAuth struct {
 	config HTTPAuthConfig
@@ -27,6 +30,9 @@ func NewHTTPAuth(config HTTPAuthConfig) *httpAuth {
 		config: config,
 		client: &http.Client{
 			Timeout: config.Timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return ErrRedirect
+			},
 		},
 	}
 }
@@ -44,12 +50,22 @@ func (h *httpAuth) Authenticate(streamid stream.StreamID) (bool, stream.StreamID
 		"name":                 {streamid.Name()},
 		h.config.PasswordParam: {streamid.Password()},
 	})
+	if err.Error() == ErrRedirect.Error() {
 
-	if err != nil {
+	} else if err != nil {
 		log.Println("http-auth:", err)
 		return false, streamid
 	}
 	defer response.Body.Close()
+
+	// Redirects
+	if response.StatusCode == http.StatusPermanentRedirect || response.StatusCode == http.StatusTemporaryRedirect {
+		loc, err := response.Location()
+		if err != nil {
+			return false, streamid
+		}
+		return true, stream.NewStreamID(streamid.Mode(), loc.Path, streamid.Password())
+	}
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return false, streamid

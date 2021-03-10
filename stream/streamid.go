@@ -40,6 +40,15 @@ type StreamID struct {
 	password string
 }
 
+func NewStreamID(mode Mode, name string, password string) StreamID {
+	return StreamID{
+		str:      "", // TODO: Calculate this from other fields
+		mode:     mode,
+		name:     name,
+		password: password,
+	}
+}
+
 // FromString reads a streamid from a string.
 // The accepted stream id format is <mode>/<password>/<password>.
 // The second slash and password is optional and defaults to empty.
