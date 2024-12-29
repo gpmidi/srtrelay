@@ -200,9 +200,13 @@ func (s *ServerImpl) Handle(ctx context.Context, sock *srtgo.SrtSocket, addr *ne
 	var streamid stream.StreamID
 	defer sock.Close()
 
-	res, err := hooks.ProcessEvent(ctx, hooks.NewEvent())
+	res, err := hooks.ProcessEventQuick(ctx, hooks.WebhookTypeConnect)
 	if err != nil {
 		log.Println(err)
+		return
+	}
+	if !res.Ok() {
+		log.Printf("Blocking connection from %s based on webhook\n", addr)
 		return
 	}
 

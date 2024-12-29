@@ -9,8 +9,10 @@ type EventImpl struct {
 	t WebHookType
 }
 
-func NewEvent() Event {
-
+func NewEvent(hookType WebHookType) Event {
+	return EventImpl{
+		t: hookType,
+	}
 }
 
 func (e EventImpl) Type() WebHookType {

@@ -60,6 +60,16 @@ func ProcessEvent(ctx context.Context, event Event) (result Result, err error) {
 	return evt.OnEvent(ctx, event)
 }
 
+// ProcessEventQuick is a shortcut for ProcessEvent and NewEvent in one.
+func ProcessEventQuick(ctx context.Context, hookType WebHookType) (result Result, err error) {
+	return ProcessEvent(
+		ctx,
+		NewEvent(
+			hookType,
+		),
+	)
+}
+
 func (w *BaseHook) HandleType() WebHookType {
 	return w.handleType
 }
