@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/voc/srtrelay/hooks"
 	"log"
 	"os"
 	"strings"
@@ -15,9 +16,10 @@ import (
 const MetricsNamespace = "srtrelay"
 
 type Config struct {
-	App  AppConfig
-	Auth AuthConfig
-	API  APIConfig
+	App     AppConfig
+	Auth    AuthConfig
+	API     APIConfig
+	Webhook hooks.Webhooks
 }
 
 type AppConfig struct {
@@ -112,6 +114,7 @@ func Parse(paths []string) (*Config, error) {
 			Enabled: true,
 			Address: ":8080",
 		},
+		Webhook: hooks.Webhooks{},
 	}
 
 	var data []byte
@@ -156,6 +159,13 @@ func Parse(paths []string) (*Config, error) {
 		config.App.PublicAddress = fmt.Sprintf("%s:%s", getHostname(), split[len(split)-1])
 		log.Println("Note: assuming public address", config.App.PublicAddress)
 	}
+
+	// Update all webhooks with known configurations
+	if err := config.Webhook.UpdateConfigs(); err != nil {
+		return nil, err
+	}
+
+	// FIXME: If http auth is enabled, create appropriate webhooks if they're not there already. If they are, treat them as overrides.
 
 	return &config, nil
 }

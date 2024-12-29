@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/voc/srtrelay/hooks"
 	"io"
 	"log"
 	"net"
@@ -198,6 +199,12 @@ type relaySocket interface {
 func (s *ServerImpl) Handle(ctx context.Context, sock *srtgo.SrtSocket, addr *net.UDPAddr) {
 	var streamid stream.StreamID
 	defer sock.Close()
+
+	res, err := hooks.ProcessEvent(ctx, hooks.NewEvent())
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	idstring, err := sock.GetSockOptString(C.SRTO_STREAMID)
 	if err != nil {
