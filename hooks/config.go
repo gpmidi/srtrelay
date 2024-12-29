@@ -4,26 +4,27 @@ import "time"
 
 type ConfigName string
 
-type WebHookType int
+type WebHookType int64
 
 const (
-	WebhookTypeInvalid WebHookType = iota
-	WebhookTypeConnect
+	WebhookTypeInvalid WebHookType = 1 << iota
 	WebhookTypePlay
 	WebhookTypePublish
-	WebhookTypeDone
 	WebhookTypePlayDone
 	WebhookTypePublishDone
 	WebhookTypeRecordDone
 	WebhookTypeUpdate
+	WebhookTypeConnect = WebhookTypePlay | WebhookTypePublish
+	WebhookTypeDone    = WebhookTypePlayDone | WebhookTypePublishDone | WebhookTypeRecordDone
 )
 
+// Webhooks are all configured hooks from the config file
 type Webhooks struct {
 	Hooks map[ConfigName]WebhookConfig
 }
 
 type WebhookConfig struct {
-	Disabled    bool          // Is this hook turned on/off
+	Disabled    bool          // Is this Hook turned on/off
 	URL         string        // URL to call
 	Method      string        // GET/POST/etc to use with URL
 	Application string        // App to pass in

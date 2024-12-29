@@ -10,7 +10,7 @@ type Webhook interface {
 	// HandleType returns the webhook handler type
 	HandleType() WebHookType
 
-	// ConfigName returns the hook name for the configuration file
+	// ConfigName returns the Hook name for the configuration file
 	ConfigName() ConfigName
 	// Config returns the raw configuration info
 	Config() WebhookConfig
@@ -20,7 +20,7 @@ type Webhook interface {
 	ConfigIsValid() bool
 
 	// OnEvent is called when the webhook type event happens.
-	// Go/No-go is returned via bool and err if there was a handling problem. Must return go unless told not to by hook result.
+	// Go/No-go is returned via bool and err if there was a handling problem. Must return go unless told not to by Hook result.
 	OnEvent(ctx context.Context, event Event) (result Result, err error)
 
 	// IsEnabled returns true if we're not disabled and have a valid configuration
@@ -47,21 +47,27 @@ func newBaseHook(configName ConfigName, handleType WebHookType) BaseHook {
 
 // ProcessEvent should be called when there is an event to pass on via hooks.
 // The result is always an "all good" unless a webhook works and says not to. Optionally includes redirect info via msg.
-func ProcessEvent(ctx context.Context, event Event) (result Result, err error) {
-	evt, err := GetHookByType(event.Type())
+func ProcessEvent(ctx context.Context, event Event) (res []Result, err error) {
+	t, err := NewThreadedHookProcessor(ctx, event)
 	if err != nil {
-		return NewDefaultResult(), err
-	}
-	// If hook isn't good to go we can just assume all is well
-	if !evt.IsEnabled() {
-		return NewDefaultResult(), nil
+		return nil, err
 	}
 
-	return evt.OnEvent(ctx, event)
+	t.Start()
+
+	// Return the first error if there are any
+	for _, h := range t.Results() {
+		if h.Err != nil {
+			return res, h.Err
+		}
+	}
+
+	// No errors
+	return res, nil
 }
 
 // ProcessEventQuick is a shortcut for ProcessEvent and NewEvent in one.
-func ProcessEventQuick(ctx context.Context, hookType WebHookType) (result Result, err error) {
+func ProcessEventQuick(ctx context.Context, hookType WebHookType) (result []Result, err error) {
 	return ProcessEvent(
 		ctx,
 		NewEvent(
@@ -118,20 +124,25 @@ func RegisterWebhook(hook Webhook) error {
 	defer registeredHooksLock.Unlock()
 
 	if _, ok := registeredHooks[hookType]; ok {
-		return fmt.Errorf("hook already registered: %v", hookType)
+		return fmt.Errorf("Hook already registered: %v", hookType)
 	}
 	registeredHooks[hookType] = hook
 	return nil
 }
 
-func GetHookByType(hookType WebHookType) (Webhook, error) {
+func GetHookByType(hookType WebHookType) (ret []Webhook, err error) {
 	registeredHooksLock.Lock()
 	defer registeredHooksLock.Unlock()
-	hook, ok := registeredHooks[hookType]
-	if !ok {
-		return nil, fmt.Errorf("hook not registered: %v", hookType)
+
+	ret = make([]Webhook, 0)
+
+	for hType, hook := range registeredHooks {
+		if hookType&hType > 0 {
+			ret = append(ret, hook)
+		}
 	}
-	return hook, nil
+
+	return
 }
 
 func GetHookByConfigName(configName ConfigName) (Webhook, error) {
@@ -142,5 +153,5 @@ func GetHookByConfigName(configName ConfigName) (Webhook, error) {
 			return hook, nil
 		}
 	}
-	return nil, fmt.Errorf("hook not registered: %v", configName)
+	return nil, fmt.Errorf("Hook not registered: %v", configName)
 }
