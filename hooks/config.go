@@ -24,11 +24,12 @@ type Webhooks struct {
 }
 
 type WebhookConfig struct {
-	Disabled    bool          // Is this Hook turned on/off
-	URL         string        // URL to call
-	Method      string        // GET/POST/etc to use with URL
-	Application string        // App to pass in
-	Timeout     time.Duration // Timeout for webhook request
+	Disabled      bool          // Is this Hook turned on/off
+	URL           string        // URL to call
+	Method        string        // GET/POST/etc to use with URL
+	Application   string        // App to pass in
+	Timeout       time.Duration // Timeout for webhook request
+	PasswordParam string        // POST Parameter containing stream passphrase
 }
 
 func (w Webhooks) UpdateConfigs() error {
@@ -40,4 +41,17 @@ func (w Webhooks) UpdateConfigs() error {
 		h.UpdateConfig(cfg)
 	}
 	return nil
+}
+
+func (w WebhookConfig) GetPasswordParam() string {
+	if w.PasswordParam == "" {
+		return "auth"
+	}
+	return w.PasswordParam
+}
+
+func NewWebhookConfig() Webhooks {
+	return Webhooks{
+		Hooks: make(map[ConfigName]WebhookConfig),
+	}
 }

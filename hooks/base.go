@@ -2,9 +2,14 @@ package hooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sync"
 )
+
+var ErrInvalidLocation = errors.New("invalid location")
 
 type Webhook interface {
 	// HandleType returns the webhook handler type
@@ -36,6 +41,7 @@ type BaseHook struct {
 	configName ConfigName
 	config     *WebhookConfig
 	handleType WebHookType
+	client     *http.Client
 }
 
 func newBaseHook(configName ConfigName, handleType WebHookType) BaseHook {
@@ -47,31 +53,32 @@ func newBaseHook(configName ConfigName, handleType WebHookType) BaseHook {
 
 // ProcessEvent should be called when there is an event to pass on via hooks.
 // The result is always an "all good" unless a webhook works and says not to. Optionally includes redirect info via msg.
-func ProcessEvent(ctx context.Context, event Event) (res []Result, err error) {
-	t, err := NewThreadedHookProcessor(ctx, event)
-	if err != nil {
-		return nil, err
-	}
+func ProcessEvent(ctx context.Context, event Event) (res []Result, errs []error, err error) {
+	t := NewThreadedHookProcessor(ctx, event)
+	res = make([]Result, 0)
+	errs = make([]error, 0)
 
 	t.Start()
 
-	// Return the first error if there are any
+	// Return the last error if there are any
 	for _, h := range t.Results() {
 		if h.Err != nil {
-			return res, h.Err
+			err = h.Err
+			errs = append(errs, h.Err)
+		} else {
+			res = append(res, h.Result)
 		}
 	}
-
-	// No errors
-	return res, nil
+	return
 }
 
 // ProcessEventQuick is a shortcut for ProcessEvent and NewEvent in one.
-func ProcessEventQuick(ctx context.Context, hookType WebHookType) (result []Result, err error) {
+func ProcessEventQuick(ctx context.Context, hookType WebHookType, hookData map[ValueKey]string) (result []Result, errs []error, err error) {
 	return ProcessEvent(
 		ctx,
 		NewEvent(
 			hookType,
+			hookData,
 		),
 	)
 }
@@ -118,6 +125,38 @@ func (w *BaseHook) ConfigIsValid() bool {
 	return true
 }
 
+func (w *BaseHook) doCallback(ctx context.Context, values url.Values) (Result, error) {
+	resp, err := w.client.PostForm(w.Config().URL, values)
+	if err != nil {
+		return NewDefaultResult(), err
+	}
+
+	var redirect *url.URL
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		if resp.Header.Get("Location") == "" {
+			return NewDefaultResult(), ErrInvalidLocation
+		}
+		redirect, err = url.Parse(resp.Header.Get("Location"))
+		if err != nil {
+			return NewDefaultResult(), err
+		}
+	}
+
+	// Maybe use body in future?
+	//data, err := ioutil.ReadAll(resp.Body)
+	//defer resp.Body.Close()
+	//if err != nil {
+	//	return NewDefaultResult(), err
+	//}
+
+	return NewResult(
+		resp.StatusCode >= 200 && resp.StatusCode < 400,
+		resp.Status,
+		resp.StatusCode,
+		redirect,
+	), nil
+}
+
 func RegisterWebhook(hook Webhook) error {
 	hookType := hook.HandleType()
 	registeredHooksLock.Lock()
@@ -130,11 +169,11 @@ func RegisterWebhook(hook Webhook) error {
 	return nil
 }
 
-func GetHookByType(hookType WebHookType) (ret []Webhook, err error) {
+func GetHookByType(hookType WebHookType) []Webhook {
 	registeredHooksLock.Lock()
 	defer registeredHooksLock.Unlock()
 
-	ret = make([]Webhook, 0)
+	ret := make([]Webhook, 0)
 
 	for hType, hook := range registeredHooks {
 		if hookType&hType > 0 {
@@ -142,7 +181,7 @@ func GetHookByType(hookType WebHookType) (ret []Webhook, err error) {
 		}
 	}
 
-	return
+	return ret
 }
 
 func GetHookByConfigName(configName ConfigName) (Webhook, error) {

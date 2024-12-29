@@ -103,6 +103,9 @@ func Parse(paths []string) (*Config, error) {
 				// Allow everything by default
 				Allow: []string{"*"},
 			},
+			// Deprecated: Use `Webhook` from hooks.Webhooks
+			// If present, will auto add a `Webhook` entry matching this data under `default`. Will overwrite
+			// `default` if both are present.
 			HTTP: auth.HTTPAuthConfig{
 				URL:           "http://localhost:8080/publish",
 				Timeout:       auth.Duration(time.Second),
@@ -114,7 +117,7 @@ func Parse(paths []string) (*Config, error) {
 			Enabled: true,
 			Address: ":8080",
 		},
-		Webhook: hooks.Webhooks{},
+		Webhook: hooks.NewWebhookConfig(),
 	}
 
 	var data []byte
@@ -160,12 +163,21 @@ func Parse(paths []string) (*Config, error) {
 		log.Println("Note: assuming public address", config.App.PublicAddress)
 	}
 
+	if config.Auth.Type == "http" {
+		config.Webhook.Hooks["Default"] = hooks.WebhookConfig{
+			Disabled:      false,
+			URL:           config.Auth.HTTP.URL,
+			Method:        "POST",
+			Application:   config.Auth.HTTP.Application,
+			Timeout:       time.Duration(config.Auth.HTTP.Timeout),
+			PasswordParam: config.Auth.HTTP.PasswordParam,
+		}
+	}
+
 	// Update all webhooks with known configurations
 	if err := config.Webhook.UpdateConfigs(); err != nil {
 		return nil, err
 	}
-
-	// FIXME: If http auth is enabled, create appropriate webhooks if they're not there already. If they are, treat them as overrides.
 
 	return &config, nil
 }

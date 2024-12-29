@@ -200,16 +200,6 @@ func (s *ServerImpl) Handle(ctx context.Context, sock *srtgo.SrtSocket, addr *ne
 	var streamid stream.StreamID
 	defer sock.Close()
 
-	res, err := hooks.ProcessEventQuick(ctx, hooks.WebhookTypeConnect)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if !res.Ok() {
-		log.Printf("Blocking connection from %s based on webhook\n", addr)
-		return
-	}
-
 	idstring, err := sock.GetSockOptString(C.SRTO_STREAMID)
 	if err != nil {
 		log.Println(err)
@@ -220,6 +210,32 @@ func (s *ServerImpl) Handle(ctx context.Context, sock *srtgo.SrtSocket, addr *ne
 	if err := streamid.FromString(idstring); err != nil {
 		log.Println(err)
 		return
+	}
+
+	results, errs, err := hooks.ProcessEventQuick(
+		ctx,
+		hooks.WebhookTypeConnect,
+		map[hooks.ValueKey]string{
+			hooks.ValKeyAddr:      addr.String(),
+			hooks.ValKeyName:      streamid.Name(),
+			hooks.ValKeyUsername:  streamid.Username(),
+			hooks.ValKeyStreamKey: idstring,
+			hooks.ValKeyMode:      streamid.Mode().String(),
+		},
+	)
+	if err != nil {
+		log.Println("Errors from hook processing...")
+		for i, err := range errs {
+			log.Printf("Hook Errror %d: %s\n", i, err)
+		}
+		log.Println("...End Errors from hook processing")
+		return
+	}
+	for _, r := range results {
+		if !r.Ok() {
+			log.Printf("Blocking connection from %s based on webhook msg=%s, code=%d\n", addr, r.ResultMessage(), r.Code())
+			return
+		}
 	}
 
 	conn := &srtConn{

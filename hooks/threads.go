@@ -23,17 +23,14 @@ type ThreadedHookProcessor struct {
 	wg        sync.WaitGroup
 }
 
-func NewThreadedHookProcessor(ctx context.Context, event Event) (*ThreadedHookProcessor, error) {
+func NewThreadedHookProcessor(ctx context.Context, event Event) *ThreadedHookProcessor {
 	thp := ThreadedHookProcessor{
 		insts:     make(map[HookInstanceID]*HookInstance),
 		instsLock: sync.Mutex{},
 		wg:        sync.WaitGroup{},
 	}
 
-	hooks, err := GetHookByType(event.Type())
-	if err != nil {
-		return nil, err
-	}
+	hooks := GetHookByType(event.Type())
 
 	thp.instsLock.Lock()
 	defer thp.instsLock.Unlock()
@@ -52,7 +49,7 @@ func NewThreadedHookProcessor(ctx context.Context, event Event) (*ThreadedHookPr
 		}
 	}
 
-	return &thp, nil
+	return &thp
 }
 
 func (t *ThreadedHookProcessor) Start() {
