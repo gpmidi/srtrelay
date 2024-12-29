@@ -49,7 +49,7 @@ type HTTPAuthConfig struct {
 	PasswordParam string   // POST Parameter containing stream passphrase
 }
 
-// NewHttpAuth creates an Authenticator with a HTTP backend
+// NewHTTPAuth creates an Authenticator with a HTTP backend
 func NewHTTPAuth(authConfig HTTPAuthConfig) Authenticator {
 	m := requestDurations.MustCurryWith(prometheus.Labels{"url": authConfig.URL, "application": authConfig.Application})
 	return &httpAuth{
